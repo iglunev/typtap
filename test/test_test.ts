@@ -126,3 +126,16 @@ test('single mode', (c) => {
     typtap.single = true;
     typtap.run();
 });
+
+test('single mode with filters', (c) => {
+    const typtap = new Typtap();
+    typtap.test('should not work', () => {
+        c.fail('failed');
+    });
+    typtap.test('should work', () => {
+        c.pass('worked');
+    });
+    typtap.single = true;
+    typtap.exclude = /not/;
+    typtap.run();
+});

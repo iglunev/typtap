@@ -102,14 +102,14 @@ export class Typtap {
             this.reporter.start();
         }
         let tests = this.tests;
-        if (this.single && this.tests.length > 0) {
-            tests = [this.tests[0]];
-        }
         if (this.include) {
             tests = tests.filter(({ description }) => this.include!.test(description));
         }
         if (this.exclude) {
             tests = tests.filter(({ description }) => !this.exclude!.test(description));
+        }
+        if (this.single && tests.length > 0) {
+            tests = [tests[0]];
         }
         for (const { runner } of tests) {
             await runner();

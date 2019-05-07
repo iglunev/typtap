@@ -1,5 +1,6 @@
+import {rejects} from 'assert';
 import equal from 'fast-deep-equal';
-import { ITyptapReporter, Tap } from './tap';
+import {ITyptapReporter, ITyptapTestResult, Tap} from './tap';
 
 export interface ITestOptions {
     timeout?: number;
@@ -34,6 +35,7 @@ export interface ITestReport {
     passed: number;
     failed: number;
     errored: number;
+    testResult: ITyptapTestResult[];
 }
 
 export class Typtap {
@@ -52,6 +54,8 @@ export class Typtap {
     private errored = 0;
     private counter = 0;
 
+    private testResult: ITyptapTestResult[] = [];
+
     private readonly reporter?: ITyptapReporter;
     private readonly context: ITestContext;
 
@@ -69,23 +73,24 @@ export class Typtap {
     }
 
     /** @param {Object=} options */
-    public test(description: string, runner: ITestRunner, options?: ITestOptions) {
+    public test(description: string, testRunner: ITestRunner, options?: ITestOptions) {
         this.tests.push({
             description,
             runner: async () => {
                 if (this.reporter) {
                     this.reporter.label(description);
                 }
+
                 try {
                     if (options && typeof options.timeout === 'number') {
                         await Promise.race([
-                            runner(this.context),
+                            testRunner(this.context),
                             new Promise((resolve, reject) => {
                                 setTimeout(() => reject(new Error('Timeout')), options.timeout);
                             }),
                         ]);
                     } else {
-                        await runner(this.context);
+                        await testRunner(this.context);
                     }
                 } catch (error) {
                     ++this.errored;
@@ -116,11 +121,14 @@ export class Typtap {
         }
         if (this.reporter) {
             this.reporter.end(this.passed, this.failed);
+            this.testResult = this.reporter.getTestResult();
         }
+
         return {
             passed: this.passed,
             failed: this.failed,
             errored: this.errored,
+            testResult: this.testResult,
         };
     }
 
@@ -131,7 +139,7 @@ export class Typtap {
             ++this.failed;
         }
         if (this.reporter) {
-            this.reporter.test({
+            this.reporter.writeTestResult({
                 description: message ? message : '',
                 id: ++this.counter,
                 passed,
@@ -143,5 +151,5 @@ export class Typtap {
 
 export const test: ITestFunction =
     (description: string, runner: ITestRunner, options?: ITestOptions) => {
-        Typtap.Default.test(description, runner);
+        Typtap.Default.test(description, runner, options);
     };

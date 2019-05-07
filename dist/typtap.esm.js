@@ -1,6 +1,10 @@
 class Tap {
     constructor() {
         this.buffer = [];
+        this.testResult = [];
+    }
+    getTestResult() {
+        return this.testResult;
     }
     /** @param {number=} offset */
     print(message, offset) {
@@ -12,9 +16,11 @@ class Tap {
         this.print('TAP version 13');
     }
     label(label) {
+        this.currentTest = { name: label, tests: [] };
         this.print('# ' + label);
     }
-    test(result) {
+    writeTestResult(result) {
+        this.currentTest.tests.push(result);
         this.print(`${result.passed ? 'ok' : 'not ok'} ${result.id} ${result.description}`);
     }
     error(error) {
@@ -30,6 +36,7 @@ class Tap {
         this.print('...', 2);
     }
     end(passed, failed) {
+        this.testResult.push(this.currentTest);
         const count = passed + failed;
         this.print('1..' + count);
         this.flush();
@@ -109,6 +116,7 @@ class Typtap {
         this.failed = 0;
         this.errored = 0;
         this.counter = 0;
+        this.testResult = [];
         this.tests = [];
         this.reporter = reporter;
         this.context = {
@@ -120,7 +128,7 @@ class Typtap {
         };
     }
     /** @param {Object=} options */
-    test(description, runner, options) {
+    test(description, testRunner, options) {
         this.tests.push({
             description,
             runner: async () => {
@@ -130,14 +138,14 @@ class Typtap {
                 try {
                     if (options && typeof options.timeout === 'number') {
                         await Promise.race([
-                            runner(this.context),
+                            testRunner(this.context),
                             new Promise((resolve, reject) => {
                                 setTimeout(() => reject(new Error('Timeout')), options.timeout);
                             }),
                         ]);
                     }
                     else {
-                        await runner(this.context);
+                        await testRunner(this.context);
                     }
                 }
                 catch (error) {
@@ -154,25 +162,27 @@ class Typtap {
             this.reporter.start();
         }
         let tests = this.tests;
-        if (this.single && this.tests.length > 0) {
-            tests = [this.tests[0]];
-        }
         if (this.include) {
             tests = tests.filter(({ description }) => this.include.test(description));
         }
         if (this.exclude) {
             tests = tests.filter(({ description }) => !this.exclude.test(description));
         }
+        if (this.single && tests.length > 0) {
+            tests = [tests[0]];
+        }
         for (const { runner } of tests) {
             await runner();
         }
         if (this.reporter) {
             this.reporter.end(this.passed, this.failed);
+            this.testResult = this.reporter.getTestResult();
         }
         return {
             passed: this.passed,
             failed: this.failed,
             errored: this.errored,
+            testResult: this.testResult,
         };
     }
     report(passed, message) {
@@ -183,7 +193,7 @@ class Typtap {
             ++this.failed;
         }
         if (this.reporter) {
-            this.reporter.test({
+            this.reporter.writeTestResult({
                 description: message ? message : '',
                 id: ++this.counter,
                 passed,
@@ -193,7 +203,7 @@ class Typtap {
 }
 Typtap.Default = new Typtap(new Tap());
 const test = (description, runner, options) => {
-    Typtap.Default.test(description, runner);
+    Typtap.Default.test(description, runner, options);
 };
 
 if (typeof window !== 'undefined') {

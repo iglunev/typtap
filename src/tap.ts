@@ -5,19 +5,31 @@ export interface ITyptapReporter {
 
     label(label: string): void;
 
-    test(result: ITestResult): void;
+    writeTestResult(result: ITestResult): void;
 
     error(error: any): void;
 
     end(passed: number, failed: number): void;
 
     print(message: string, offset?: number): void;
+
+    getTestResult(): ITyptapTestResult[];
+}
+
+export interface ITyptapTestResult {
+    name: string,
+    tests: ITestResult[],
 }
 
 export class Tap implements ITyptapReporter {
 
     private buffer: string[] = [];
+    private testResult: ITyptapTestResult[] = [];
+    private currentTest!: ITyptapTestResult;
 
+    public getTestResult(): ITyptapTestResult[] {
+        return this.testResult;
+    }
     /** @param {number=} offset */
     public print(message: string, offset?: number) {
         message = typeof offset === 'number' ? (new Array(offset + 1)).join(' ') + message : message;
@@ -30,10 +42,12 @@ export class Tap implements ITyptapReporter {
     }
 
     public label(label: string) {
+        this.currentTest = {name: label, tests: []};
         this.print('# ' + label);
     }
 
-    public test(result: ITestResult) {
+    public writeTestResult(result: ITestResult) {
+        this.currentTest.tests.push(result);
         this.print(`${result.passed ? 'ok' : 'not ok'} ${result.id} ${result.description}`);
     }
 
@@ -50,6 +64,7 @@ export class Tap implements ITyptapReporter {
     }
 
     public end(passed: number, failed: number) {
+        this.testResult.push(this.currentTest);
         const count = passed + failed;
         this.print('1..' + count);
         this.flush();

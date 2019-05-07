@@ -1,4 +1,4 @@
-import { ITyptapReporter } from './tap';
+import { ITyptapReporter, ITyptapTestResult } from './tap';
 export interface ITestOptions {
     timeout?: number;
 }
@@ -25,6 +25,7 @@ export interface ITestReport {
     passed: number;
     failed: number;
     errored: number;
+    testResult: ITyptapTestResult[];
 }
 export declare class Typtap {
     static Default: Typtap;
@@ -37,12 +38,13 @@ export declare class Typtap {
     private failed;
     private errored;
     private counter;
+    private testResult;
     private readonly reporter?;
     private readonly context;
     private readonly tests;
     constructor(reporter?: ITyptapReporter);
     /** @param {Object=} options */
-    test(description: string, runner: ITestRunner, options?: ITestOptions): void;
+    test(description: string, testRunner: ITestRunner, options?: ITestOptions): void;
     run(): Promise<ITestReport>;
     private report;
 }
